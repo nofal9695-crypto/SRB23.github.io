@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>W25Q128FV Programmer Pro — Flash Memory Utility</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif;
+            min-height: 100vh;
+            position: relative;
+            line-height: 1.4;
+            transition: background 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1), color 0.3s ease;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            opacity: 0.35;
+            transition: opacity 0.5s ease;
+            z-index: -2;
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.25);
+            transition: background 0.5s ease;
+            z-index: -1;
+        }
+
+        :root {
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #86868b;
+            --text-hero: #1d1d1f;
+            --accent-blue: #0071e3;
+            --accent-blue-hover: #0077ed;
+            --accent-green: #34c759;
+            --accent-red: #ff3b30;
+            --accent-orange: #ff9f0a;
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --glass-blur: blur(12px);
+            --terminal-bg: rgba(0, 0, 0, 0.75);
+            --terminal-text: #e8e8ed;
+        }
+
+        body.dark {
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-tertiary: #6e6e73;
+            --text-hero: #ffffff;
+            --accent-blue: #0a84ff;
+            --accent-blue-hover: #409cff;
+            --glass-bg: rgba(28, 28, 30, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark::before { opacity: 0.2; }
+        body.dark::after { background: rgba(0, 0, 0, 0.6); }
+
+        /* Navigation */
+        .glass-nav {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--glass-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--glass-shadow);
+            transition: all 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+        .logo-small { width: 32px; height: 32px; }
+        .logo-text { font-weight: 500; font-size: 1.1rem; color: var(--text-primary); transition: color 0.3s ease; }
+        .logo-text span { font-weight: 400; color: var(--text-secondary); }
+
+        .right-controls { display: flex; align-items: center; gap: 16px; }
+
+        .status-chip {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .led { width: 8px; height: 8px; border-radius: 50%; background: #6e6e73; transition: all 0.2s; }
+        .led.active { background: #34c759; box-shadow: 0 0 6px #34c759; }
+
+        .theme-toggle {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 40px;
+            padding: 4px;
+            display: flex;
+            gap: 4px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-slider {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            width: calc(50% - 4px);
+            background: var(--accent-blue);
+            border-radius: 32px;
+            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            z-index: 0;
+        }
+
+        .theme-toggle.light .theme-slider { transform: translateX(0); }
+        .theme-toggle.dark .theme-slider { transform: translateX(100%); }
+
+        .theme-option {
+            padding: 6px 14px;
+            border-radius: 32px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            background: transparent;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+            position: relative;
+            z-index: 1;
+        }
+        .theme-option.active { color: white; }
+
+        .main { max-width: 1400px; margin: 0 auto; padding: 40px 24px 60px; flex: 1; }
+
+        .hero { text-align: center; margin-bottom: 48px; }
+        .hero-logo { margin-bottom: 32px; display: flex; justify-content: center; align-items: center; position: relative; }
+
+        /* Efek gelombang elektromagnetik */
+        .em-wave {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: transparent;
+            pointer-events: none;
+        }
+
+        .wave-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 2px solid transparent;
+            animation: waveExpand 3s ease-out infinite;
+        }
+
+        .wave-ring:nth-child(1) { animation-delay: 0s; border-color: rgba(10, 132, 255, 0.6); }
+        .wave-ring:nth-child(2) { animation-delay: 0.6s; border-color: rgba(52, 199, 89, 0.5); }
+        .wave-ring:nth-child(3) { animation-delay: 1.2s; border-color: rgba(10, 132, 255, 0.4); }
+        .wave-ring:nth-child(4) { animation-delay: 1.8s; border-color: rgba(52, 199, 89, 0.3); }
+        .wave-ring:nth-child(5) { animation-delay: 2.4s; border-color: rgba(10, 132, 255, 0.2); }
+
+        @keyframes waveExpand {
+            0% { width: 160px; height: 160px; opacity: 0.8; border-width: 2px; }
+            100% { width: 320px; height: 320px; opacity: 0; border-width: 1px; }
+        }
+
+        /* Garis berputar */
+        .rotating-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #0a84ff, #34c759, #0a84ff, #34c759, #0a84ff);
+            animation: rotateRing 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rotateRing {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .rotating-ring-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 210px;
+            height: 210px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(4px);
+        }
+
+        .logo-3d-wrapper {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 800px;
+            z-index: 10;
+        }
+        .premium-ic-3d {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            transform-style: preserve-3d;
+            animation: float3D 3s ease-in-out infinite, rotate3D 8s ease-in-out infinite;
+            cursor: pointer;
+            z-index: 20;
+        }
+        .premium-ic-3d:hover { transform: scale(1.05); animation-play-state: paused; }
+        @keyframes float3D { 0%,100% { transform: translateY(0) rotateX(2deg) rotateY(2deg); } 50% { transform: translateY(-8px) rotateX(4deg) rotateY(4deg); } }
+        @keyframes rotate3D { 0% { transform: rotateY(0deg) rotateX(0deg); } 25% { transform: rotateY(5deg) rotateX(3deg); } 75% { transform: rotateY(-5deg) rotateX(-3deg); } 100% { transform: rotateY(0deg) rotateX(0deg); } }
+        .ic-svg-3d { width: 100%; height: 100%; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2)); }
+
+        .hero-badge {
+            display: inline-block;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+
+        .hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 600; letter-spacing: -0.02em; color: var(--text-hero); margin-bottom: 16px; }
+        .hero p { font-size: 1rem; color: var(--text-hero); max-width: 600px; margin: 0 auto; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border-radius: 24px;
+            box-shadow: var(--glass-shadow);
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .card-content { padding: 24px; }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 12px;
+        }
+
+        .upload-zone {
+            border: 1.5px dashed var(--glass-border);
+            border-radius: 20px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.2);
+            margin-bottom: 16px;
+        }
+        .upload-zone:hover { border-color: var(--accent-blue); background: rgba(255, 255, 255, 0.3); }
+
+        .info-grid {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid var(--glass-border);
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 0.85rem;
+        }
+        .info-row:last-child { border-bottom: none; }
+
+        .chip-status-panel {
+            background: linear-gradient(135deg, rgba(10, 132, 255, 0.08), rgba(52, 199, 89, 0.05));
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .status-header-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-blue);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .status-header h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .status-header p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .status-item-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 12px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .status-item-card:hover {
+            border-color: var(--glass-border);
+            transform: translateY(-2px);
+        }
+
+        .status-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-tertiary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .status-badge.success { background: rgba(52, 199, 89, 0.15); color: #34c759; }
+        .status-badge.warning { background: rgba(255, 159, 10, 0.15); color: #ff9f0a; }
+        .status-badge.error { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
+        .status-badge.info { background: rgba(10, 132, 255, 0.15); color: #0a84ff; }
+        .status-badge.idle { background: rgba(134, 134, 139, 0.15); color: var(--text-secondary); }
+
+        .chip-detail {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+        }
+
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+        .btn {
+            border: none;
+            border-radius: 980px;
+            padding: 8px 16px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+        }
+        .btn-primary { background: var(--accent-blue); color: white; border: none; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-blue-hover); transform: scale(1.02); }
+        .btn-danger { background: var(--accent-red); color: white; border: none; }
+        .btn-success { background: var(--accent-green); color: white; border: none; }
+        .btn-outline { background: transparent; }
+        .btn-sm { padding: 4px 12px; font-size: 0.7rem; }
+        .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+        .progress-wrapper { margin: 16px 0; }
+        .progress-bar { height: 6px; background: rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: var(--accent-blue); border-radius: 6px; transition: width 0.3s ease; }
+        .progress-stats { display: flex; justify-content: space-between; font-size: 0.7rem; margin-top: 8px; color: var(--text-secondary); }
+
+        .data-viewer {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+            font-family: 'SF Mono', monospace;
+            font-size: 10px;
+            max-height: 200px;
+            overflow: auto;
+            display: none;
+        }
+
+        .log-area-glass {
+            background: var(--terminal-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 24px;
+            border: 1px solid var(--glass-border);
+        }
+        .log-header-glass {
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .log-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+        .log-content-glass {
+            height: 200px;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'SF Mono', monospace;
+            font-size: 0.7rem;
+            background: rgba(0,0,0,0.3);
+        }
+        .log-entry-glass { padding: 4px 8px; margin-bottom: 2px; border-radius: 4px; display: flex; align-items: flex-start; gap: 10px; }
+        .log-time { color: var(--text-secondary); min-width: 70px; opacity: 0.7; }
+        .log-message { flex: 1; word-break: break-word; }
+        .log-entry-glass.info .log-message { color: #30d158; }
+        .log-entry-glass.error .log-message { color: #ff453a; }
+        .log-entry-glass.warning .log-message { color: #ff9f0a; }
+        .log-entry-glass.system .log-message { color: #64d2ff; }
+
+        /* SELECT MODERN APPLE-STYLE */
+        .modern-select {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 980px;
+            padding: 10px 20px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px;
+            min-width: 120px;
+        }
+        .modern-select:hover {
+            border-color: var(--accent-blue);
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        .modern-select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+        }
+
+        /* AI Panel */
+        .ai-assistant { position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+        
+        .welcome-bubble {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border-radius: 28px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            padding: 12px 20px;
+            margin-bottom: 8px;
+            position: relative;
+            animation: bubbleFloatIn 0.5s ease, gentleFloat 3s ease-in-out infinite;
+            transform-origin: bottom right;
+            max-width: 240px;
+            cursor: pointer;
+        }
+        .welcome-bubble:hover { transform: scale(1.02); }
+        
+        @keyframes bubbleFloatIn { from { opacity: 0; transform: translateY(20px) scale(0.8); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes gentleFloat { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        
+        .welcome-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            right: 20px;
+            border-width: 10px 10px 0 0;
+            border-style: solid;
+            border-color: var(--glass-bg) transparent transparent transparent;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.1));
+        }
+        
+        .welcome-text {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .close-welcome {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 8px;
+            padding: 0 4px;
+            border-radius: 50%;
+        }
+        .close-welcome:hover { background: rgba(0,0,0,0.1); }
+
+        .ai-icon-container { 
+            width: 56px; 
+            height: 56px; 
+            background: linear-gradient(135deg, var(--accent-blue), #5e5ce0); 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+            transition: all 0.3s; 
+            box-shadow: var(--glass-shadow); 
+            font-size: 28px; 
+            animation: aiPulse 2s ease-in-out infinite;
+            position: relative;
+            z-index: 10;
+        }
+        @keyframes aiPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(10,132,255,0.4); } 50% { box-shadow: 0 0 0 10px rgba(10,132,255,0); } }
+        .ai-icon-container:hover { transform: scale(1.08); animation: none; }
+        
+        .ai-panel {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            width: 380px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            pointer-events: none;
+        }
+        .ai-panel.show { opacity: 1; transform: scale(1) translateY(0); pointer-events: all; }
+        .ai-panel.hidden { display: none; }
+        .ai-panel-header { padding: 12px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
+        .reset-chat { background: none; border: none; color: var(--accent-blue); cursor: pointer; font-size: 0.7rem; margin-right: 12px; padding: 4px 8px; border-radius: 12px; }
+        .close-ai { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem; }
+        .ai-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .ai-msg { max-width: 90%; padding: 8px 12px; border-radius: 16px; font-size: 0.75rem; white-space: pre-line; animation: messageSlideIn 0.3s ease; }
+        @keyframes messageSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .ai-msg.user { background: var(--accent-blue); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .ai-msg.bot { background: rgba(255,255,255,0.15); color: var(--text-primary); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .ai-input-area { display: flex; padding: 12px; gap: 8px; border-top: 1px solid var(--glass-border); }
+        .ai-input-area input { flex: 1; padding: 8px 12px; border: 1px solid var(--glass-border); border-radius: 24px; background: rgba(255,255,255,0.1); color: var(--text-primary); font-size: 0.75rem; }
+        .ai-input-area button { background: var(--accent-blue); border: none; border-radius: 24px; padding: 8px 16px; color: white; cursor: pointer; }
+
+        .footer { margin-top: auto; padding: 20px 24px 30px; text-align: center; }
+        .footer-divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent 0%, var(--glass-border) 20%, var(--glass-border) 80%, transparent 100%); margin-bottom: 20px; }
+        .footer-text { font-size: 0.7rem; letter-spacing: 0.5px; color: var(--text-secondary); text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+        @media (max-width: 640px) {
+            .logo-3d-wrapper { width: 150px; height: 150px; }
+            .premium-ic-3d { width: 110px; height: 110px; }
+            .rotating-ring { width: 170px; height: 170px; }
+            .rotating-ring-inner { width: 160px; height: 160px; }
+            .hero h1 { font-size: 1.6rem; }
+            .ai-panel { width: 320px; }
+            .status-grid { grid-template-columns: 1fr; }
+            .modern-select { min-width: 100px; font-size: 0.75rem; padding: 8px 16px; padding-right: 32px; background-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="glass-nav">
+    <div class="nav-container">
+        <a href="#" class="logo">
+            <svg class="logo-small" viewBox="0 0 100 100" fill="none">
+                <rect x="25" y="25" width="50" height="50" rx="10" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="38" y="38" width="24" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+                <circle cx="50" cy="50" r="5" fill="currentColor" fill-opacity="0.4"/>
+            </svg>
+            <span class="logo-text">Flash<span>Utility</span></span>
+        </a>
+        <div class="right-controls">
+            <div class="status-chip" id="connectionChip">
+                <div class="led" id="ledIndicator"></div>
+                <span id="connectionText">Tidak terhubung</span>
+            </div>
+            <div class="theme-toggle light" id="themeToggle">
+                <div class="theme-slider"></div>
+                <button class="theme-option" data-theme="light">Light</button>
+                <button class="theme-option" data-theme="dark">Dark</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="main">
+    <div class="hero">
+        <div class="hero-logo">
+            <div class="em-wave">
+                <div class="wave-ring"></div>
+                <div class="wave-ring"></div>
+                <div class="wave-ring"></div>
+                <div class="wave-ring"></div>
+                <div class="wave-ring"></div>
+            </div>
+            <div class="rotating-ring"></div>
+            <div class="rotating-ring-inner"></div>
+            
+            <div class="logo-3d-wrapper">
+                <div class="premium-ic-3d" id="bigIcLogo">
+                    <svg class="ic-svg-3d" viewBox="0 0 100 100" fill="none">
+                        <rect x="18" y="18" width="64" height="64" rx="12" fill="currentColor" fill-opacity="0.12" stroke="url(#strokeGrad)" stroke-width="2"/>
+                        <rect x="30" y="30" width="40" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+                        <circle cx="50" cy="50" r="8" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.2"/>
+                        <circle cx="50" cy="50" r="4" fill="#30d158" fill-opacity="0.6"/>
+                        <line x1="18" y1="30" x2="8" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="18" y1="40" x2="8" y2="40" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="18" y1="50" x2="8" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="18" y1="60" x2="8" y2="60" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="18" y1="70" x2="8" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="82" y1="30" x2="92" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="82" y1="40" x2="92" y2="40" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="82" y1="50" x2="92" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="82" y1="60" x2="92" y2="60" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="82" y1="70" x2="92" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="35" y1="18" x2="35" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="50" y1="18" x2="50" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="65" y1="18" x2="65" y2="8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="35" y1="82" x2="35" y2="92" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="50" y1="82" x2="50" y2="92" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="65" y1="82" x2="65" y2="92" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <defs><linearGradient id="strokeGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0a84ff"/><stop offset="100%" stop-color="#34c759"/></linearGradient></defs>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="hero-badge">W25Q128FV · Intel HEX · BIN · Professional Programmer</div>
+        <h1>Program Flash Memory<br>Dengan presisi profesional</h1>
+        <p>Upload file HEX/BIN, hubungkan ESP32, dan program chip memori Anda dengan fitur lengkap</p>
+    </div>
+
+    <div class="main-grid">
+        <div>
+            <div class="glass-card">
+                <div class="card-content">
+                    <div class="card-title"><span>📁</span> 1. File Firmware</div>
+                    <div class="upload-zone" id="uploadZone">
+                        <div style="font-size: 1.8rem; margin-bottom: 8px;">⌘</div>
+                        <div style="font-weight: 500;">Drag & drop file HEX/BIN</div>
+                        <div style="font-size: 0.7rem; opacity: 0.7;">atau klik untuk memilih</div>
+                        <input type="file" id="fileInput" accept=".hex,.intelhex,.bin,.txt" style="display: none;">
+                    </div>
+                    <div id="fileInfoArea" style="display: none;">
+                        <div class="info-grid">
+                            <div class="info-row"><span>📄 Nama file</span><span id="fileName" style="font-weight: 500;">—</span></div>
+                            <div class="info-row"><span>📦 Ukuran</span><span id="fileSize">—</span></div>
+                            <div class="info-row"><span>💾 Data bytes</span><span id="dataBytes">—</span></div>
+                            <div class="info-row"><span>📍 Rentang alamat</span><span id="addressRange">—</span></div>
+                            <div class="info-row"><span>🔐 Checksum</span><span id="checksumInfo">—</span></div>
+                        </div>
+                        <div class="btn-group">
+                            <button id="viewDataBtn" class="btn btn-outline btn-sm" disabled>📄 Tampilkan data</button>
+                        </div>
+                        <div id="dataViewer" class="data-viewer"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="card-content">
+                    <div class="card-title"><span>⚡</span> 2. Programming</div>
+                    <div class="btn-group">
+                        <button id="programBtn" class="btn btn-primary" disabled>💾 Program Flash</button>
+                        <button id="verifyBtn" class="btn btn-outline" disabled>✅ Verifikasi</button>
+                        <button id="eraseBtn" class="btn btn-danger" disabled>🗑️ Erase Chip</button>
+                        <button id="readFlashBtn" class="btn btn-outline" disabled>📖 Read Flash</button>
+                        <button id="readIdBtn" class="btn btn-outline btn-sm" disabled>🔍 Read ID</button>
+                    </div>
+                    <div class="progress-wrapper" id="progressWrapper" style="display: none;">
+                        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                        <div class="progress-stats">
+                            <span id="progressPercent">0%</span>
+                            <span id="progressSpeed">—</span>
+                            <span id="progressEta">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="glass-card">
+                <div class="card-content">
+                    <div class="card-title"><span>🔌</span> Status Chip</div>
+                    <div class="chip-status-panel">
+                        <div class="status-header">
+                            <div class="status-header-icon">🔌</div>
+                            <div>
+                                <h3>Flash Memory Status</h3>
+                                <p>W25Q128FV · 16MB</p>
+                            </div>
+                        </div>
+                        
+                        <div class="status-grid">
+                            <div class="status-item-card">
+                                <div class="status-label">🔗 Koneksi</div>
+                                <div class="status-value">
+                                    <span class="status-badge error" id="statusConnection">❌ Terputus</span>
+                                </div>
+                            </div>
+                            <div class="status-item-card">
+                                <div class="status-label">📁 File Loaded</div>
+                                <div class="status-value">
+                                    <span class="status-badge idle" id="statusFile">❌ Belum</span>
+                                </div>
+                            </div>
+                            <div class="status-item-card">
+                                <div class="status-label">🔍 Chip Found</div>
+                                <div class="status-value">
+                                    <span class="status-badge error" id="statusChip">❌ Tidak terdeteksi</span>
+                                </div>
+                            </div>
+                            <div class="status-item-card">
+                                <div class="status-label">📊 Programming</div>
+                                <div class="status-value">
+                                    <span class="status-badge idle" id="statusProgramming">Idle</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chip-detail">
+                            <span>🔐 JEDEC ID</span>
+                            <strong id="jedecId">—</strong>
+                        </div>
+                        <div class="chip-detail">
+                            <span>💾 Flash Size</span>
+                            <strong id="flashSize">—</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="card-content">
+                    <div class="card-title"><span>🔌</span> 3. Koneksi Serial</div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;">
+                        <select id="baudRate" class="modern-select">
+                            <option value="115200">115200 bps</option>
+                            <option value="57600">57600 bps</option>
+                            <option value="9600">9600 bps</option>
+                        </select>
+                        <button id="connectBtn" class="btn btn-primary">🔗 Connect</button>
+                        <button id="disconnectBtn" class="btn btn-outline" disabled>🔌 Disconnect</button>
+                        <button id="autoDetectBtn" class="btn btn-outline btn-sm" disabled>🔄 Auto Detect</button>
+                    </div>
+                    <div class="btn-group">
+                        <button id="readStatusBtn" class="btn btn-outline btn-sm" disabled>📋 Read Status Register</button>
+                        <button id="writeStatusBtn" class="btn btn-outline btn-sm" disabled>✍️ Write Status Register</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="log-area-glass">
+        <div class="log-header-glass">
+            <div class="log-title">📋 Terminal Log <span class="log-badge">Live</span></div>
+            <div class="log-controls">
+                <button id="autoScrollBtn" class="btn btn-sm" style="background:rgba(0,113,227,0.2);">📌 Auto Scroll ON</button>
+                <button id="copyLogBtn" class="btn btn-sm">📋 Copy</button>
+                <button id="exportLogBtn" class="btn btn-sm">💾 Export</button>
+                <button id="clearLogBtn" class="btn btn-sm">🗑️ Clear</button>
+            </div>
+        </div>
+        <div class="log-content-glass" id="logList">
+            <div class="log-entry-glass system"><span class="log-time">System</span><span class="log-message">✨ Flash Utility Professional v2.0 siap digunakan ✨</span></div>
+            <div class="log-entry-glass info"><span class="log-time">Info</span><span class="log-message">📌 Support file HEX, BIN, Intel HEX full (Record Type 00,01,02,04)</span></div>
+            <div class="log-entry-glass info"><span class="log-time">Info</span><span class="log-message">🔐 Validasi checksum Intel HEX aktif</span></div>
+            <div class="log-entry-glass info"><span class="log-time">Info</span><span class="log-message">⏱️ Timeout serial: 30 detik</span></div>
+            <div class="log-entry-glass info"><span class="log-time">Info</span><span class="log-message">💡 Klik ikon AI di pojok kanan bawah untuk Assistant Agent</span></div>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-divider"></div>
+        <div class="footer-text">
+            <span>🔒 PRIVATE WEBSITE</span><span class="separator">•</span>
+            <span>🏗️ PROFESSIONAL BUILD</span><span class="separator">•</span>
+            <span>🎓 STUDENT PROJECT</span><span class="separator">•</span>
+            <span>© 2026</span>
+        </div>
+    </div>
+</footer>
+
+<div class="ai-assistant">
+    <div class="welcome-bubble" id="welcomeBubble">
+        <div class="welcome-text">
+            <span>✨🤖✨</span>
+            Selamat Datang di FlashUtility Pro!
+            <button class="close-welcome" id="closeWelcomeBtn">✕</button>
+        </div>
+        <div style="font-size: 0.65rem; margin-top: 4px;">💡 Klik saya untuk mulai chatting</div>
+    </div>
+    <div class="ai-panel hidden" id="aiPanel">
+        <div class="ai-panel-header"><span>✨ Assistant Agent ✨</span><div><button class="reset-chat" id="resetChatBtn">🔄 Reset</button><button class="close-ai" id="closeAiPanel">×</button></div></div>
+        <div class="ai-messages" id="aiMessages"></div>
+        <div class="ai-input-area"><input type="text" id="aiInput" placeholder="Tanya tentang Flash Utility..."><button id="sendAiBtn">Kirim</button></div>
+    </div>
+    <div class="ai-icon-container" id="aiIcon">🤖</div>
+</div>
+
+<script>
+    // ============================================
+    // WELCOME BUBBLE
+    // ============================================
+    const welcomeBubble = document.getElementById('welcomeBubble');
+    const closeWelcomeBtn = document.getElementById('closeWelcomeBtn');
+    
+    if (localStorage.getItem('welcomeClosed') === 'true') {
+        welcomeBubble.style.display = 'none';
+    }
+    
+    closeWelcomeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        welcomeBubble.style.display = 'none';
+        localStorage.setItem('welcomeClosed', 'true');
+    });
+    
+    welcomeBubble.addEventListener('click', (e) => {
+        if (e.target !== closeWelcomeBtn) {
+            aiPanel.classList.remove('hidden');
+            aiPanel.classList.add('show');
+            if (aiMessages.children.length === 0) {
+                addAIMessage("👋 Halo! Saya Assistant Agent untuk Flash Utility Pro. Ada yang bisa saya bantu? 😊", false);
+            }
+        }
+    });
+    
+    setTimeout(() => {
+        if (welcomeBubble && welcomeBubble.style.display !== 'none') {
+            welcomeBubble.style.opacity = '0';
+            setTimeout(() => {
+                if (welcomeBubble) welcomeBubble.style.display = 'none';
+                localStorage.setItem('welcomeClosed', 'true');
+            }, 500);
+        }
+    }, 6000);
+    
+    // ============================================
+    // AI ASSISTANT
+    // ============================================
+    const aiIcon = document.getElementById('aiIcon');
+    const aiPanel = document.getElementById('aiPanel');
+    const closeAiPanel = document.getElementById('closeAiPanel');
+    const resetChatBtn = document.getElementById('resetChatBtn');
+    const aiInput = document.getElementById('aiInput');
+    const sendAiBtn = document.getElementById('sendAiBtn');
+    const aiMessages = document.getElementById('aiMessages');
+    
+    aiIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (aiPanel.classList.contains('show')) {
+            aiPanel.classList.remove('show');
+            setTimeout(() => aiPanel.classList.add('hidden'), 300);
+        } else {
+            aiPanel.classList.remove('hidden');
+            setTimeout(() => aiPanel.classList.add('show'), 10);
+            if (aiMessages.children.length === 0) {
+                addAIMessage("👋 Halo! Saya Assistant Agent untuk Flash Utility Pro. Ada yang bisa saya bantu? 😊", false);
+            }
+        }
+    });
+    
+    closeAiPanel.addEventListener('click', () => {
+        aiPanel.classList.remove('show');
+        setTimeout(() => aiPanel.classList.add('hidden'), 300);
+    });
+    
+    function addAIMessage(text, isUser) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `ai-msg ${isUser ? 'user' : 'bot'}`;
+        msgDiv.textContent = text;
+        aiMessages.appendChild(msgDiv);
+        aiMessages.scrollTop = aiMessages.scrollHeight;
+    }
+    
+    // AI Response yang PRECISE dan TEPAT tentang website
+    function aiResponse(question) {
+        const q = question.toLowerCase();
+        
+        // Informasi Dasar Website
+        if (q.includes('web apa') || q.includes('website ini') || q.includes('aplikasi ini')) {
+            return "Flash Utility Pro adalah aplikasi web profesional untuk programming chip W25Q128FV (Flash Memory 16MB). Website ini memiliki fitur lengkap: upload file Intel HEX atau BIN, koneksi ke ESP32 via Web Serial API, program flash memory, verifikasi data, erase chip, read flash, read JEDEC ID, read/write status register, auto detect chip, estimasi waktu programming, terminal log dengan export, dan AI Assistant Agent.";
+        }
+        
+        // Cara Penggunaan
+        if (q.includes('cara pakai') || q.includes('tutorial') || q.includes('langkah') || q.includes('step') || q.includes('gunakan')) {
+            return "Panduan menggunakan Flash Utility Pro:\n\n1️⃣ Upload file firmware (HEX atau BIN) melalui drag & drop atau klik area upload\n2️⃣ Klik tombol Connect, pilih port serial ESP32 yang terdeteksi\n3️⃣ Tunggu proses auto detect chip (akan muncul JEDEC ID)\n4️⃣ Klik Program Flash untuk memulai programming\n5️⃣ Gunakan tombol Verifikasi untuk memastikan data tertulis dengan benar\n6️⃣ Gunakan Read Flash untuk membaca isi chip dan Read ID untuk identifikasi chip\n\n💡 Gunakan baud rate 115200 untuk performa terbaik! Browser harus Chrome/Edge.";
+        }
+        
+        // Fitur
+        if (q.includes('fitur') || q.includes('feature') || q.includes('kemampuan') || q.includes('apa saja')) {
+            return "Fitur lengkap Flash Utility Pro:\n\n✅ Upload & Parse Intel HEX (Record Type 00,01,02,04) dengan validasi checksum\n✅ Support file BIN\n✅ Koneksi Serial ke ESP32 via Web Serial API\n✅ Program W25Q128FV Flash Memory (16MB)\n✅ Verifikasi data\n✅ Erase chip\n✅ Read Flash - baca isi chip\n✅ Read JEDEC ID - identifikasi chip\n✅ Read/Write Status Register\n✅ Auto Detect chip\n✅ Light/Dark Mode\n✅ Progress bar real-time dengan estimasi waktu (KB/s, ETA)\n✅ Terminal log dengan Auto Scroll, Copy, Export\n✅ Assistant Agent (saya!)";
+        }
+        
+        // W25Q128FV
+        if (q.includes('w25q') || q.includes('chip') || q.includes('flash memory') || q.includes('apa itu w25q')) {
+            return "W25Q128FV adalah chip Flash Memory 16MB (128 Megabit) yang digunakan dalam proyek embedded systems.\n\nSpesifikasi lengkap:\n• Kapasitas: 16 MB (128 Mbit)\n• Interface: SPI (kecepatan hingga 104MHz)\n• Tegangan operasi: 2.7V - 3.6V\n• Umur: Minimal 100,000 program/erase cycles\n• Package: SOIC-8, WSON-8\n\nCocok untuk menyimpan firmware, bootloader, atau file sistem.";
+        }
+        
+        // Wiring ESP32 ke W25Q128FV
+        if (q.includes('wiring') || q.includes('skema') || q.includes('pin') || q.includes('kabel') || q.includes('koneksi hardware')) {
+            return "Wiring Diagram ESP32 ke W25Q128FV:\n\nESP32 → W25Q128FV\nGPIO5  → CS   (Chip Select, Pin 1)\nGPIO23 → MOSI (Master Out Slave In, Pin 2)\nGPIO19 → MISO (Master In Slave Out, Pin 3)\nGPIO18 → SCK  (Serial Clock, Pin 6)\n3.3V   → VCC  (Power, Pin 4)\nGND    → GND  (Ground, Pin 5)\nGPIO21 → WP   (Write Protect, Pin 7) - opsional\nGPIO22 → HOLD (Hold, Pin 8) - opsional\n\n💡 Tambahan: Pasang kapasitor 0.1µF antara VCC dan GND. Pull-up resistor 10kΩ pada CS, WP, HOLD direkomendasikan.";
+        }
+        
+        // Programming
+        if (q.includes('program flash') || q.includes('cara program') || q.includes('tulis flash')) {
+            return "Proses Programming:\n\n1. Upload file HEX/BIN ke website\n2. Hubungkan ESP32 via USB\n3. Klik Connect, pilih port serial\n4. Klik Program Flash\n5. Data dikirim per 256 byte ke W25Q128FV\n6. Progress bar menunjukkan status (KB/s, ETA)\n7. Tunggu hingga 100%\n8. Lakukan Verifikasi untuk memastikan data benar\n\nWaktu programming tergantung ukuran file (max 16MB).";
+        }
+        
+        // Verifikasi
+        if (q.includes('verify') || q.includes('verifikasi')) {
+            return "Verifikasi adalah proses membandingkan data yang sudah diprogram di W25Q128FV dengan file HEX/BIN asli.\n\nFungsinya:\n• Memastikan tidak ada kesalahan penulisan data\n• Mendeteksi kerusakan atau korupsi data\n• Memberikan kepastian firmware berfungsi dengan baik\n\nCara: Setelah programming selesai, klik tombol 'Verifikasi'. Sistem akan membaca kembali setiap byte dari flash memory dan mencocokkannya.";
+        }
+        
+        // Erase
+        if (q.includes('erase') || q.includes('hapus') || q.includes('delete')) {
+            return "⚠️ PERINGATAN! Erase Chip akan menghapus SELURUH data di W25Q128FV (16MB).\n\nProses:\n• Tidak bisa dibatalkan\n• Memakan waktu sekitar 30 detik\n• Semua byte menjadi 0xFF (kosong)\n\nKapan perlu erase?\n• Flash memory penuh atau korup\n• Ingin memulai dari awal\n• Firmware lama ingin diganti total\n\nSelalu backup data penting sebelum erase!";
+        }
+        
+        // Error
+        if (q.includes('error') || q.includes('gagal') || q.includes('tidak bisa') || q.includes('masalah')) {
+            return "🔧 Troubleshooting:\n\n❌ File tidak valid → pastikan format .hex atau .bin\n❌ Gagal konek → cek kabel USB, pilih port yang tepat, gunakan Chrome/Edge\n❌ Programming gagal → periksa wiring ESP32 ke W25Q128FV, pastikan tegangan 3.3V stabil\n❌ Verify error → data korup, coba program ulang\n❌ Chip tidak terdeteksi → tekan tombol RESET di ESP32\n\n💡 Masih bermasalah? Refresh halaman atau restart ESP32.";
+        }
+        
+        // ESP32
+        if (q.includes('esp32') && !q.includes('wiring')) {
+            return "ESP32 bertugas sebagai perantara antara website dan chip W25Q128FV.\n\nAlur kerja:\nWebsite → (Web Serial via USB) → ESP32 → (kabel jumper) → IC W25Q128FV\n\nESP32 menerima data dari website melalui Web Serial API (koneksi USB), lalu memprogram W25Q128FV melalui komunikasi SPI. Pastikan firmware ESP32 sudah diupload dengan kode programmer yang sesuai.";
+        }
+        
+        // Tentang AI Assistant
+        if (q.includes('siapa kamu') || q.includes('kamu siapa') || q.includes('assistant')) {
+            return "🤖 Halo! Saya Assistant Agent, AI asisten untuk Flash Utility Pro.\n\nSaya bisa membantu Anda:\n• Memahami cara menggunakan website ini\n• Menjelaskan fitur-fitur yang tersedia\n• Menjawab pertanyaan tentang W25Q128FV, ESP32, dan programming flash memory\n• Membantu troubleshooting jika ada error\n\nAda yang bisa saya bantu hari ini? 😊";
+        }
+        
+        // Sapaan
+        if (q.match(/^(halo|hai|hey|hi|pagi|siang|malam)$/)) {
+            return "Halo juga! 👋 Ada yang bisa saya bantu tentang Flash Utility Pro? Tanyakan saja! 😊";
+        }
+        
+        // Terima kasih
+        if (q.includes('terima kasih') || q.includes('makasih') || q.includes('thanks')) {
+            return "Sama-sama! 👍 Senang bisa membantu. Kalau ada pertanyaan lain, langsung tanya aja ya!";
+        }
+        
+        // Default - selalu berusaha membantu
+        return "Maaf saya kurang paham dengan pertanyaan itu 🙏\n\nCoba tanyakan:\n🌐 'Web apa ini?' - penjelasan website\n📖 'Cara menggunakan?' - panduan lengkap\n✨ 'Fitur apa saja?' - daftar fitur\n💾 'Apa itu W25Q128FV?' - spesifikasi chip\n🔌 'Wiring ESP32 ke W25Q128FV?' - skema koneksi\n⚡ 'Cara program flash?' - proses programming\n🔗 'Koneksi serial?' - cara connect ESP32\n❌ 'Error konek?' - solusi masalah\n\nSaya tunggu pertanyaan Anda! 😊";
+    }
+    
+    function sendToAI() {
+        const question = aiInput.value.trim();
+        if (!question) return;
+        addAIMessage(question, true);
+        aiInput.value = '';
+        setTimeout(() => { addAIMessage(aiResponse(question), false); }, 300);
+    }
+    
+    resetChatBtn.addEventListener('click', () => { aiMessages.innerHTML = ''; addAIMessage("👋 Halo! Saya Assistant Agent untuk Flash Utility Pro. Ada yang bisa saya bantu? 😊", false); });
+    sendAiBtn.addEventListener('click', sendToAI);
+    aiInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendToAI(); });
+    
+    // ============================================
+    // STATE DAN SERIAL LOGIC (ringkas)
+    // ============================================
+    let hexData = null;
+    let currentBytes = [];
+    let currentAddresses = [];
+    let port = null;
+    let reader = null;
+    let writer = null;
+    let isConnected = false;
+    let readLoopActive = true;
+    let autoScrollEnabled = true;
+    let programmingStartTime = 0;
+    let programmedBytes = 0;
+    let extendedLinearAddress = 0;
+    let extendedSegmentAddress = 0;
+    
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfoArea = document.getElementById('fileInfoArea');
+    const fileNameSpan = document.getElementById('fileName');
+    const fileSizeSpan = document.getElementById('fileSize');
+    const dataBytesSpan = document.getElementById('dataBytes');
+    const addressRangeSpan = document.getElementById('addressRange');
+    const checksumInfo = document.getElementById('checksumInfo');
+    const viewDataBtn = document.getElementById('viewDataBtn');
+    const dataViewer = document.getElementById('dataViewer');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const autoDetectBtn = document.getElementById('autoDetectBtn');
+    const programBtn = document.getElementById('programBtn');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const eraseBtn = document.getElementById('eraseBtn');
+    const readFlashBtn = document.getElementById('readFlashBtn');
+    const readIdBtn = document.getElementById('readIdBtn');
+    const readStatusBtn = document.getElementById('readStatusBtn');
+    const writeStatusBtn = document.getElementById('writeStatusBtn');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressFill = document.getElementById('progressFill');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressSpeed = document.getElementById('progressSpeed');
+    const progressEta = document.getElementById('progressEta');
+    const clearLogBtn = document.getElementById('clearLogBtn');
+    const autoScrollBtn = document.getElementById('autoScrollBtn');
+    const copyLogBtn = document.getElementById('copyLogBtn');
+    const exportLogBtn = document.getElementById('exportLogBtn');
+    const baudSelect = document.getElementById('baudRate');
+    const ledIndicator = document.getElementById('ledIndicator');
+    const connectionText = document.getElementById('connectionText');
+    const statusConnection = document.getElementById('statusConnection');
+    const statusFile = document.getElementById('statusFile');
+    const statusChip = document.getElementById('statusChip');
+    const statusProgramming = document.getElementById('statusProgramming');
+    const jedecIdSpan = document.getElementById('jedecId');
+    const flashSizeSpan = document.getElementById('flashSize');
+    
+    function addLog(message, type = 'info') {
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry-glass ${type}`;
+        const time = new Date().toLocaleTimeString('id-ID');
+        logEntry.innerHTML = `<span class="log-time">${time}</span><span class="log-message">${message}</span>`;
+        document.getElementById('logList').appendChild(logEntry);
+        if (autoScrollEnabled) {
+            logEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+    
+    function parseIntelHex(content) {
+        const lines = content.split(/\r?\n/);
+        const dataMap = new Map();
+        let minAddr = Infinity, maxAddr = -Infinity, totalBytes = 0;
+        let checksumErrors = [];
+        extendedLinearAddress = 0;
+        extendedSegmentAddress = 0;
+        
+        for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+            let line = lines[lineNum].trim();
+            if (!line.startsWith(':')) continue;
+            try {
+                const byteCount = parseInt(line.substr(1, 2), 16);
+                const address = parseInt(line.substr(3, 4), 16);
+                const recordType = parseInt(line.substr(7, 2), 16);
+                const dataHex = line.substr(9, byteCount * 2);
+                const checksumByte = parseInt(line.substr(9 + byteCount * 2, 2), 16);
+                
+                let calcChecksum = 0;
+                calcChecksum += byteCount;
+                calcChecksum += (address >> 8) & 0xFF;
+                calcChecksum += address & 0xFF;
+                calcChecksum += recordType;
+                for (let i = 0; i < byteCount; i++) {
+                    calcChecksum += parseInt(dataHex.substr(i * 2, 2), 16);
+                }
+                calcChecksum = (~calcChecksum + 1) & 0xFF;
+                
+                if (calcChecksum !== checksumByte) {
+                    checksumErrors.push(lineNum + 1);
+                    addLog(`⚠️ Checksum error pada baris ${lineNum + 1}`, 'warning');
+                    continue;
+                }
+                
+                if (recordType === 0) {
+                    let baseAddr = address;
+                    if (extendedLinearAddress > 0) baseAddr = (extendedLinearAddress << 16) | address;
+                    else if (extendedSegmentAddress > 0) baseAddr = (extendedSegmentAddress << 4) | address;
+                    for (let i = 0; i < byteCount; i++) {
+                        const byteVal = parseInt(dataHex.substr(i * 2, 2), 16);
+                        const absAddr = baseAddr + i;
+                        dataMap.set(absAddr, byteVal);
+                        minAddr = Math.min(minAddr, absAddr);
+                        maxAddr = Math.max(maxAddr, absAddr);
+                        totalBytes++;
+                    }
+                } else if (recordType === 1) break;
+                else if (recordType === 2) extendedSegmentAddress = parseInt(dataHex.substr(0, 4), 16);
+                else if (recordType === 4) extendedLinearAddress = parseInt(dataHex.substr(0, 4), 16);
+            } catch(e) { addLog(`Parse error baris ${lineNum + 1}: ${e.message}`, 'error'); }
+        }
+        
+        const bytes = [], addresses = [];
+        for (let i = minAddr; i <= maxAddr; i++) {
+            bytes.push(dataMap.get(i) ?? 0xFF);
+            addresses.push(i);
+        }
+        return { bytes, addresses, minAddr, maxAddr, totalBytes, checksumErrors };
+    }
+    
+    function parseBinFile(content) {
+        const bytes = new Uint8Array(content);
+        const addresses = [];
+        for (let i = 0; i < bytes.length; i++) addresses.push(i);
+        return { bytes: Array.from(bytes), addresses, minAddr: 0, maxAddr: bytes.length - 1, totalBytes: bytes.length, checksumErrors: [] };
+    }
+    
+    function processFile(file) {
+        const isHex = file.name.endsWith('.hex') || file.name.endsWith('.intelhex') || file.name.endsWith('.txt');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            let parsed;
+            if (isHex) {
+                const content = e.target.result;
+                parsed = parseIntelHex(content);
+                if (parsed.checksumErrors.length > 0) addLog(`⚠️ Ditemukan ${parsed.checksumErrors.length} checksum error`, 'warning');
+                checksumInfo.textContent = parsed.checksumErrors.length === 0 ? '✅ Valid' : `⚠️ ${parsed.checksumErrors.length} error`;
+            } else {
+                const arrayBuffer = e.target.result;
+                parsed = parseBinFile(arrayBuffer);
+                checksumInfo.textContent = 'N/A (BIN)';
+            }
+            if (parsed.totalBytes === 0) { addLog('File tidak valid', 'error'); return; }
+            hexData = parsed;
+            currentBytes = parsed.bytes;
+            currentAddresses = parsed.addresses;
+            fileNameSpan.textContent = file.name;
+            fileSizeSpan.textContent = (file.size / 1024).toFixed(2) + ' KB';
+            dataBytesSpan.textContent = parsed.totalBytes.toLocaleString();
+            addressRangeSpan.textContent = `0x${parsed.minAddr.toString(16)} – 0x${parsed.maxAddr.toString(16)}`;
+            fileInfoArea.style.display = 'block';
+            viewDataBtn.disabled = false;
+            statusFile.innerHTML = '✅ Loaded';
+            statusFile.className = 'status-badge success';
+            addLog(`✅ Parsing sukses: ${parsed.totalBytes} bytes`, 'success');
+            updateProgramButton();
+        };
+        if (isHex) reader.readAsText(file);
+        else reader.readAsArrayBuffer(file);
+    }
+    
+    function updateProgramButton() {
+        const hasData = (hexData !== null);
+        programBtn.disabled = !(hasData && isConnected);
+        verifyBtn.disabled = !(hasData && isConnected);
+        readFlashBtn.disabled = !isConnected;
+        readIdBtn.disabled = !isConnected;
+        readStatusBtn.disabled = !isConnected;
+        writeStatusBtn.disabled = !isConnected;
+        autoDetectBtn.disabled = !isConnected;
+    }
+    
+    function updateConnectionUI() {
+        if (isConnected) {
+            ledIndicator.classList.add('active');
+            connectionText.textContent = 'Terhubung ke ESP32';
+            statusConnection.innerHTML = '✅ Terhubung';
+            statusConnection.className = 'status-badge success';
+            connectBtn.disabled = true;
+            disconnectBtn.disabled = false;
+        } else {
+            ledIndicator.classList.remove('active');
+            connectionText.textContent = 'Tidak terhubung';
+            statusConnection.innerHTML = '❌ Terputus';
+            statusConnection.className = 'status-badge error';
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            statusChip.innerHTML = '❌ Tidak terdeteksi';
+            statusChip.className = 'status-badge error';
+            jedecIdSpan.textContent = '—';
+            flashSizeSpan.textContent = '—';
+        }
+        updateProgramButton();
+    }
+    
+    async function readWithTimeout(reader, timeoutMs = 30000) {
+        return Promise.race([reader.read(), new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs))]);
+    }
+    
+    async function sendCommand(cmd, payload = null) {
+        if (!writer || !isConnected) { addLog('Tidak terhubung ke ESP32', 'error'); return false; }
+        try {
+            let msg = cmd + '\n';
+            if (payload) msg += JSON.stringify(payload) + '\n';
+            await writer.write(msg);
+            return true;
+        } catch(e) { addLog(`Send error: ${e.message}`, 'error'); return false; }
+    }
+    
+    async function autoDetectESP32() { addLog('🔍 Auto detect...', 'info'); await sendCommand('HELLO'); }
+    async function readJEDECID() { addLog('🔍 Membaca JEDEC ID...', 'info'); await sendCommand('READ_JEDEC'); statusChip.innerHTML = '⏳ Reading...'; statusChip.className = 'status-badge info'; }
+    async function readFlash() { if (!isConnected) { addLog('Tidak terhubung', 'error'); return; } addLog('📖 Membaca flash...', 'info'); await sendCommand('READ_FLASH'); }
+    
+    async function programFlash() {
+        if (!hexData || !isConnected) { addLog('File atau koneksi belum siap', 'error'); return; }
+        progressWrapper.style.display = 'block';
+        progressFill.style.width = '0%';
+        progressPercent.innerText = '0%';
+        progressSpeed.innerText = '—';
+        progressEta.innerText = '—';
+        programmingStartTime = Date.now();
+        programmedBytes = 0;
+        statusProgramming.innerHTML = '⏳ Programming';
+        statusProgramming.className = 'status-badge info';
+        addLog(`🚀 Memulai programming ${currentBytes.length} bytes...`, 'info');
+        const chunkSize = 256;
+        const totalChunks = Math.ceil(currentBytes.length / chunkSize);
+        let chunksCompleted = 0;
+        for (let ch = 0; ch < totalChunks; ch++) {
+            const start = ch * chunkSize;
+            const end = Math.min(start + chunkSize, currentBytes.length);
+            const chunkData = currentBytes.slice(start, end);
+            const startAddr = currentAddresses[start];
+            await sendCommand('PROGRAM', { address: startAddr, data: chunkData });
+            chunksCompleted++;
+            programmedBytes = end;
+            const percent = (chunksCompleted / totalChunks * 100).toFixed(1);
+            progressFill.style.width = `${percent}%`;
+            progressPercent.innerText = `${percent}%`;
+            const elapsed = (Date.now() - programmingStartTime) / 1000;
+            const speed = programmedBytes / elapsed / 1024;
+            progressSpeed.innerText = `${speed.toFixed(1)} KB/s`;
+            if (speed > 0) {
+                const remainingBytes = currentBytes.length - programmedBytes;
+                const etaSec = remainingBytes / (speed * 1024);
+                progressEta.innerText = `${Math.ceil(etaSec)} detik`;
+            }
+            await new Promise(r => setTimeout(r, 10));
+        }
+        await sendCommand('PROGRAM_DONE');
+        addLog('✅ Programming selesai!', 'success');
+        progressFill.style.width = '100%';
+        progressPercent.innerText = '100%';
+        statusProgramming.innerHTML = '✅ Selesai';
+        statusProgramming.className = 'status-badge success';
+        setTimeout(() => { progressWrapper.style.display = 'none'; }, 2000);
+    }
+    
+    async function readLoop() {
+        try {
+            while (isConnected && reader && readLoopActive) {
+                const { value, done } = await readWithTimeout(reader, 30000);
+                if (done) break;
+                const message = value.trim();
+                addLog(`📡 ${message}`, 'info');
+                if (message.includes('JEDEC_ID')) {
+                    const id = message.split('=')[1];
+                    jedecIdSpan.textContent = id || '—';
+                    statusChip.innerHTML = '✅ Detected';
+                    statusChip.className = 'status-badge success';
+                    addLog(`✅ Chip terdeteksi, JEDEC ID: ${id}`, 'success');
+                }
+                if (message.includes('FLASH_SIZE')) {
+                    const size = message.split('=')[1];
+                    flashSizeSpan.textContent = size || '—';
+                }
+                if (message.includes('READY')) {
+                    statusChip.innerHTML = '✅ Ready';
+                    statusChip.className = 'status-badge success';
+                }
+            }
+        } catch(e) { if (isConnected) addLog(`⚠️ Serial timeout: ${e.message}`, 'warning'); }
+    }
+    
+    async function connectSerial() {
+        try {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: parseInt(baudSelect.value) });
+            const textDecoder = new TextDecoderStream();
+            const textEncoder = new TextEncoderStream();
+            port.readable.pipeTo(textDecoder.writable);
+            writer = textEncoder.readable.getWriter();
+            reader = textDecoder.readable.getReader();
+            isConnected = true;
+            readLoopActive = true;
+            updateConnectionUI();
+            addLog('🔗 Terhubung ke ESP32', 'success');
+            readLoop();
+            autoDetectESP32();
+        } catch (err) { addLog(`Gagal konek: ${err.message}`, 'error'); }
+    }
+    
+    async function disconnectSerial() {
+        readLoopActive = false;
+        if (writer) await writer.close();
+        if (reader) await reader.cancel();
+        if (port) await port.close();
+        isConnected = false;
+        updateConnectionUI();
+        addLog('🔌 Koneksi terputus', 'warning');
+    }
+    
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.style.borderColor = '#0071e3'; });
+    uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = 'var(--glass-border)'; });
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.style.borderColor = 'var(--glass-border)';
+        if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => { if(e.target.files[0]) processFile(e.target.files[0]); });
+    
+    viewDataBtn.addEventListener('click', () => {
+        if (!hexData) return;
+        dataViewer.style.display = 'block';
+        dataViewer.innerHTML = '';
+        for (let i = 0; i < Math.min(hexData.bytes.length, 512); i += 16) {
+            const addr = hexData.addresses[i];
+            const chunk = hexData.bytes.slice(i, i+16);
+            const hexPart = chunk.map(b => b.toString(16).padStart(2,'0')).join(' ');
+            const asciiPart = chunk.map(b => (b>=32 && b<=126) ? String.fromCharCode(b): '.').join('');
+            dataViewer.innerHTML += `<div>${addr.toString(16).padStart(8,'0')}: ${hexPart.padEnd(48)} | ${asciiPart}</div>`;
+        }
+        addLog('Menampilkan data HEX di viewer', 'info');
+    });
+    
+    connectBtn.addEventListener('click', connectSerial);
+    disconnectBtn.addEventListener('click', disconnectSerial);
+    autoDetectBtn.addEventListener('click', autoDetectESP32);
+    programBtn.addEventListener('click', programFlash);
+    verifyBtn.addEventListener('click', async () => { addLog('🔍 Verifikasi...', 'info'); await sendCommand('VERIFY', { addresses: currentAddresses }); });
+    eraseBtn.addEventListener('click', async () => { if(confirm('⚠️ Hapus seluruh data W25Q128FV?')) { addLog('🗑️ Erase chip...', 'warning'); await sendCommand('ERASE_CHIP'); } });
+    readFlashBtn.addEventListener('click', readFlash);
+    readIdBtn.addEventListener('click', readJEDECID);
+    readStatusBtn.addEventListener('click', async () => { addLog('📋 Membaca status register...', 'info'); await sendCommand('READ_STATUS'); });
+    writeStatusBtn.addEventListener('click', async () => { addLog('✍️ Menulis status register...', 'info'); await sendCommand('WRITE_STATUS', { value: 0 }); });
+    
+    clearLogBtn.addEventListener('click', () => { document.getElementById('logList').innerHTML = ''; addLog('Log dibersihkan', 'system'); });
+    autoScrollBtn.addEventListener('click', () => { autoScrollEnabled = !autoScrollEnabled; autoScrollBtn.textContent = autoScrollEnabled ? '📌 Auto Scroll ON' : '📍 Auto Scroll OFF'; });
+    copyLogBtn.addEventListener('click', async () => { const logs = Array.from(document.querySelectorAll('.log-message')).map(l => l.textContent).join('\n'); await navigator.clipboard.writeText(logs); addLog('Log disalin', 'info'); });
+    exportLogBtn.addEventListener('click', () => { const logs = Array.from(document.querySelectorAll('.log-entry-glass')).map(l => l.textContent).join('\n'); const blob = new Blob([logs], {type: 'text/plain'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `flash_log_${new Date().toISOString()}.txt`; a.click(); addLog('Log diekspor', 'info'); });
+    
+    // Theme
+    const themeToggle = document.getElementById('themeToggle');
+    const themeOptions = document.querySelectorAll('.theme-option');
+    function applyTheme(theme) {
+        if (theme === 'dark') document.body.classList.add('dark');
+        else document.body.classList.remove('dark');
+        themeToggle.classList.remove('light', 'dark');
+        themeToggle.classList.add(theme);
+        themeOptions.forEach(btn => { if (btn.dataset.theme === theme) btn.classList.add('active'); else btn.classList.remove('active'); });
+        localStorage.setItem('theme', theme);
+    }
+    function initTheme() { applyTheme(localStorage.getItem('theme') || 'light'); }
+    themeOptions.forEach(btn => { btn.addEventListener('click', () => applyTheme(btn.dataset.theme)); });
+    
+    initTheme();
+    updateConnectionUI();
+</script>
+</body>
+</html>
